@@ -487,3 +487,17 @@ def test_get_num_threads() -> int:
     Returns: int - the number of threads for the parallel backend
     """
     return torch.ops.libtorch_agnostic.test_get_num_threads.default()
+
+
+def mv_tensor_accessor(t1, t2) -> Tensor:
+    """
+    Returns matrix-vector product.
+
+    Args:
+        t1: any 2-D Tensor
+        t2: any 1-D Tensor
+
+    Returns:
+        a 1-D Tensor.
+    """
+    return torch.ops.libtorch_agnostic.mv_tensor_accessor.default(t1, t2)

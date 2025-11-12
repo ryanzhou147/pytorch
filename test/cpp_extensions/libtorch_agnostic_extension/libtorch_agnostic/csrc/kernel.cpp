@@ -1,3 +1,5 @@
+#include "kernel.h"
+
 #include <torch/csrc/inductor/aoti_torch/c/shim.h>
 #include <torch/csrc/stable/accelerator.h>
 #include <torch/csrc/stable/device.h>
@@ -670,6 +672,35 @@ STABLE_TORCH_LIBRARY_IMPL(libtorch_agnostic, CompositeExplicitAutograd, m) {
   m.impl("test_device_index", &boxed_test_device_index);
   m.impl("test_device_is_cuda", &boxed_test_device_is_cuda);
   m.impl("test_device_is_cpu", &boxed_test_device_is_cpu);
+}
+
+Tensor mv_tensor_accessor_cpu(Tensor t1, Tensor t2) {
+  Tensor res = new_empty(t1, {t1.size(0)});
+  THO_DISPATCH_V2(t1.scalar_type(), "my_tensor_accessor_cpu",
+                  AT_WRAP(([&]() {
+                    auto resa = Accessor_cpu<scalar_t, 1>(reinterpret_cast<scalar_t*>(res.data_ptr()), res.sizes().data(), res.strides().data());
+                    auto t1a = Accessor_cpu<scalar_t, 2>(reinterpret_cast<scalar_t*>(t1.data_ptr()), t1.sizes().data(), t1.strides().data());
+                    auto t2a = Accessor_cpu<scalar_t, 1>(reinterpret_cast<scalar_t*>(t2.data_ptr()), t2.sizes().data(), t2.strides().data());
+                    mv_tensor_accessor_kernel<Accessor_cpu, scalar_t>(resa, t1a, t2a);
+                  })),
+                  AT_FLOATING_TYPES);
+
+  return res;
+}
+
+void boxed_mv_tensor_accessor_cpu(StableIValue* stack, uint64_t num_args, uint64_t num_outputs) {
+  Tensor t1 = torch::stable::detail::to<Tensor>(stack[0]);
+  Tensor t2 = torch::stable::detail::to<Tensor>(stack[1]);
+  Tensor res = mv_tensor_accessor_cpu(t1, t2);
+  stack[0] = torch::stable::detail::from(res);
+}
+
+STABLE_TORCH_LIBRARY_FRAGMENT(libtorch_agnostic, m) {
+  m.def("mv_tensor_accessor(Tensor t1, Tensor t2) -> Tensor");
+}
+
+STABLE_TORCH_LIBRARY_IMPL(libtorch_agnostic, CPU, m) {
+  m.impl("mv_tensor_accessor", &boxed_mv_tensor_accessor_cpu);
 }
 
 // Test functions for torch::stable::accelerator APIs
