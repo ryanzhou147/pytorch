@@ -35,6 +35,10 @@ struct C10_API PyObjectSlot {
     return pyobj_.load(std::memory_order_acquire);
   }
 
+  void store_pyobj(PyObject* obj) {
+    pyobj_.store(obj, std::memory_order_release);
+  }
+
   bool has_unique_reference() const {
     PyObject* pyobj = load_pyobj();
     return pyobj != nullptr && load_pyobj_interpreter()->refcnt(pyobj) == 1;
@@ -43,22 +47,6 @@ struct C10_API PyObjectSlot {
   void clear() {
     pyobj_.store(nullptr, std::memory_order_relaxed);
     pyobj_interpreter_.store(nullptr, std::memory_order_relaxed);
-  }
-
-  // Non thread-safe swap
-  void swap(PyObjectSlot& other) noexcept {
-    PyInterpreter* tmp_interpreter =
-        pyobj_interpreter_.load(std::memory_order_relaxed);
-    pyobj_interpreter_.store(
-        other.pyobj_interpreter_.load(std::memory_order_relaxed),
-        std::memory_order_relaxed);
-    other.pyobj_interpreter_.store(tmp_interpreter, std::memory_order_relaxed);
-
-    PyObject* tmp_pyobj = pyobj_.load(std::memory_order_relaxed);
-    pyobj_.store(
-        other.pyobj_.load(std::memory_order_relaxed),
-        std::memory_order_relaxed);
-    other.pyobj_.store(tmp_pyobj, std::memory_order_relaxed);
   }
 
  private:

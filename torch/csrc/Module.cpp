@@ -416,10 +416,9 @@ static PyObject* THPModule_swap_tensor_impl(PyObject* _unused, PyObject* args) {
   a->cdata = tmp_b;
   b->cdata = tmp_a;
 
-  // Swap the PyObjects associated with each TensorImpl
-  auto& a_slot = *a->cdata.unsafeGetTensorImpl()->pyobj_slot();
-  auto& b_slot = *b->cdata.unsafeGetTensorImpl()->pyobj_slot();
-  a_slot.swap(b_slot);
+  // Fix up the PyObjects associated with each TensorImpl
+  a->cdata.unsafeGetTensorImpl()->pyobj_slot()->store_pyobj(a_);
+  b->cdata.unsafeGetTensorImpl()->pyobj_slot()->store_pyobj(b_);
 
   Py_RETURN_NONE;
   END_HANDLE_TH_ERRORS
