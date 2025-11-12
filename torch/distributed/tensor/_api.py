@@ -422,10 +422,13 @@ class DTensor(torch.Tensor):
             placements = list(placements)
             for idx, placement in enumerate(placements):
                 # normalize shard dim to be positive
-                if placement.is_shard():
-                    placement = cast(Shard, placement)
+                if isinstance(placement, Shard | _StridedShard):
                     if placement.dim < 0:
-                        placements[idx] = Shard(placement.dim + local_tensor.ndim)
+                        normalized_dim = placement.dim + local_tensor.ndim
+                        if type(placement) is _StridedShard:
+                            placements[idx] = _StridedShard(normalized_dim, split_factor=placement.split_factor)
+                        elif type(placement) is Shard:
+                            placements[idx] = Shard(normalized_dim)
 
         # `from_local` is differentiable, and the gradient of the dist tensor this function
         # created should flow back the gradients to the local_tensor, so we call an autograd
